@@ -35,13 +35,13 @@ async function doCheckin(account, idx) {
     // 1. Re-login to renew token
     const wallet = new Wallet(account.privateKey);
     const msgRes = await api('/web3/getMessage', { walletAddress: wallet.address });
-    if (msgRes.code !== '0') throw new Error(`Gagal getMessage: ${msgRes.msg}`);
-    
+    if (msgRes.code !== '0') throw new Error(`Gagal getMessage: ${msgRes.msg || JSON.stringify(msgRes)}`);
+
     const message = msgRes.data.message;
     const signature = await wallet.signMessage(message);
 
     const loginRes = await api('/web3/login', { walletAddress: wallet.address, signature, message });
-    if (loginRes.code !== '0') throw new Error(`Gagal login: ${loginRes.msg}`);
+    if (loginRes.code !== '0') throw new Error(`Gagal login: ${loginRes.msg || JSON.stringify(loginRes)}`);
 
     // 2. Update token in memory
     account.token = loginRes.data.token;
@@ -99,13 +99,24 @@ async function main() {
     const result = await doCheckin(acc, idx);
     const status = result.success ? '✅' : '❌';
     const msg = result.success ? 'Berhasil' : (result.data?.message || 'Gagal');
-    console.log(`  ${status} [${idx + 1}/${validAccounts.length}] ${acc.nickname.padEnd(12)} — ${msg}`);
+    console.log(`  ${status} [${idx + 1}/${validAccounts.length}] ${(acc.nickname || 'Unknown').padEnd(12)} — ${msg}`);
     return result;
   });
 
-  // Save updated tokens back to file
-  saveAccounts(allAccounts);
-  console.log(`\n💾 Token baru telah disimpan ke data/accounts.json`);
+  // Safe atomic merge: re-read accounts.json before saving so any new accounts
+  // registered by background workers while checkin was running are NOT overwritten.
+  const latestAccounts = readAccounts();
+  for (const checked of validAccounts) {
+    const match = latestAccounts.find(a =>
+      (a.address && checked.address && a.address.toLowerCase() === checked.address.toLowerCase()) ||
+      (a.email && checked.email && a.email === checked.email)
+    );
+    if (match && checked.token) {
+      match.token = checked.token;
+    }
+  }
+  saveAccounts(latestAccounts);
+  console.log(`\n💾 Token baru telah disimpan ke data/accounts.json (Total akun aman: ${latestAccounts.length})`);
 
   const successCount = results.filter(r => r.success).length;
   const failedCount = results.filter(r => !r.success).length;
