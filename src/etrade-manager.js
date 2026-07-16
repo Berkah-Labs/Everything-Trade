@@ -171,7 +171,7 @@ async function generateStatusText() {
     if (realBalances[reff]) {
       balanceDisplay = `<b>${realBalances[reff].balance.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i>`;
     } else {
-      balanceDisplay = `<i>(Token API belum dimasukkan)</i>`;
+      balanceDisplay = `<b>${calculateEstimatedE(reffStats[reff].accounts).toLocaleString("id-ID")} $E</b>`;
     }
     msg += `├ <code>${reff.padEnd(10)}</code> : ${balanceDisplay}\n`;
   }
