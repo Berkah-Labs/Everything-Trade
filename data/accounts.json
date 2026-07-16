@@ -58,5 +58,17 @@
     "cookie": "",
     "enabled": true,
     "createdAt": 1784233900609
+  },
+  {
+    "address": "0x59E925bb7C49cD9b1D74AEE8B0f874431e6f4d4c",
+    "privateKey": "0x74265e8dd78f551473a4c5427bbd07c5d7654b4d1ce72d9fac51d3db54402d7f",
+    "email": "mauks46vmg@web-library.net",
+    "emailPassword": "pd8kj86vn91t5yq5",
+    "nickname": "viktor5ztq",
+    "referrer": "zurzur",
+    "token": "AlJ+gFSuRfrrdvmb/Tkk7FxOHoiqltjzZWU1POqIG5Q4V6DDC/WbN6TgQbzjpG1ss3p/1VZOroJFVhNpYmMM4D+sQxCwbBaMjBQ3zW6kSCCGCgzQ5f2NPgMCrJS4mXc7VRBMCiPGrYdTyI9DC4jK8yxXM1nt30ubgiYUmNZadNq42aLKWezPeJKpUAjCNTThopiJvg6lfQlwqUDIdoNxhQ==",
+    "cookie": "",
+    "enabled": true,
+    "createdAt": 1784233934091
   }
 ]
