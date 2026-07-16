@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 /**
  * EVERYTHING TRADE — TELEGRAM BOT MANAGER & 1-MINUTE LIVE REPORTER
- *
- * Bot Token: 8639857410:AAFmwXFE7nZHy34ADH2j2RtcAEKpDMvc2hw
- * Admin ID : 1475537552
  */
 import fetch from 'node-fetch';
 import { execSync } from 'child_process';
@@ -53,7 +50,6 @@ async function setupCommands() {
       { command: 'mode', description: '⚙️ Toggle mode laporan (Dashboard vs Pesan Baru)' }
     ]
   });
-  console.log('✅ Telegram bot menu commands configured!');
 }
 
 function getRemoteStats(host, label) {
@@ -87,6 +83,29 @@ function allListOrUnique(allList, uniqueMap) {
   return Array.from(uniqueMap.values());
 }
 
+function calculateEstimatedE(accountsList) {
+  let eToken = 0;
+  for (const acc of accountsList) {
+    // Signup Rebate: 2 $E
+    eToken += 2;
+
+    // Check-in Rebate: 2 $E per day since creation
+    if (acc.createdAt) {
+      const createdDate = new Date(acc.createdAt);
+      const today = new Date();
+      // Calculate days difference (full days)
+      const diffTime = Math.abs(today - createdDate);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      // If the account has been active and checked-in, add 2 $E per day passed
+      if (diffDays > 0) {
+        eToken += (diffDays * 2);
+      }
+    }
+  }
+  return eToken;
+}
+
 function generateStatusText() {
   const vps1 = getRemoteStats('168.144.142.160', 'VPS 1 (Wormcup)');
   const vps2 = getRemoteStats('129.212.233.185', 'VPS 2 (Hypermet)');
@@ -94,41 +113,53 @@ function generateStatusText() {
 
   const allAccounts = [...vps1.accounts, ...vps2.accounts, ...vps3.accounts];
   const uniqueMap = new Map();
-  const reffCounts = { hidnan: 0, azzura: 0, sansan: 0, raihanadhe: 0, zurzur: 0, other: 0 };
+  const reffStats = {
+    hidnan: { count: 0, accounts: [] },
+    azzura: { count: 0, accounts: [] },
+    sansan: { count: 0, accounts: [] },
+    raihanadhe: { count: 0, accounts: [] },
+    zurzur: { count: 0, accounts: [] },
+    other: { count: 0, accounts: [] }
+  };
 
   for (const acc of allListOrUnique(allAccounts, uniqueMap)) {
     const r = acc.referrer ? acc.referrer.toLowerCase() : 'hidnan';
-    if (r in reffCounts) reffCounts[r]++;
-    else reffCounts.other++;
+    if (r in reffStats) {
+      reffStats[r].count++;
+      reffStats[r].accounts.push(acc);
+    } else {
+      reffStats.other.count++;
+      reffStats.other.accounts.push(acc);
+    }
   }
 
-  const statusIcon = (active) => active ? '🟢 Running' : '🔴 Paused';
+  const statusIcon = (active) => active ? '🟢 Run' : '🔴 Off';
 
   let msg = `📊 <b>EVERYTHING TRADE — LIVE 3 VPS DASHBOARD</b>\n`;
   msg += `🕒 <code>${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC</code>\n\n`;
 
-  msg += `🖥️ <b>Status & Output Akun per VPS:</b>\n`;
+  msg += `🖥️ <b>Pekerja & Output Akun per VPS:</b>\n`;
   msg += `• <b>${vps1.label}:</b> <code>${vps1.count} akun</code> [${statusIcon(vps1.active)}]\n`;
   msg += `• <b>${vps2.label}:</b> <code>${vps2.count} akun</code> [${statusIcon(vps2.active)}]\n`;
   msg += `• <b>${vps3.label}:</b> <code>${vps3.count} akun</code> [${statusIcon(vps3.active)}]\n\n`;
 
   msg += `📈 <b>Total Akun Terkonsolidasi:</b> <code>${uniqueMap.size} Akun Unik</code>\n\n`;
 
-  msg += `👥 <b>Distribusi 5 Referal Utama:</b>\n`;
-  msg += `├ <code>hidnan</code>      : <b>${reffCounts.hidnan}</b> akun\n`;
-  msg += `├ <code>azzura</code>      : <b>${reffCounts.azzura}</b> akun\n`;
-  msg += `├ <code>sansan</code>      : <b>${reffCounts.sansan}</b> akun\n`;
-  msg += `├ <code>raihanadhe</code>  : <b>${reffCounts.raihanadhe}</b> akun\n`;
-  msg += `└ <code>zurzur</code>      : <b>${reffCounts.zurzur}</b> akun\n\n`;
+  msg += `👥 <b>Distribusi 5 Referal Utama & Estimasi Bonus:</b>\n`;
+  msg += `<i>(Signup = 2 $E | Daily Check-in = 2 $E/day)</i>\n`;
+  msg += `├ <code>hidnan</code>      : <b>${reffStats.hidnan.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.hidnan.accounts)} $E</b>\n`;
+  msg += `├ <code>azzura</code>      : <b>${reffStats.azzura.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.azzura.accounts)} $E</b>\n`;
+  msg += `├ <code>sansan</code>      : <b>${reffStats.sansan.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.sansan.accounts)} $E</b>\n`;
+  msg += `├ <code>raihanadhe</code>  : <b>${reffStats.raihanadhe.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.raihanadhe.accounts)} $E</b>\n`;
+  msg += `└ <code>zurzur</code>      : <b>${reffStats.zurzur.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.zurzur.accounts)} $E</b>\n\n`;
 
-  msg += `⚙️ <i>Mode Laporan: ${state.mode === 'dashboard' ? 'Live Dashboard Pinned (Edit Tiap Menit)' : 'Pesan Baru Tiap Menit'}</i>\n`;
+  msg += `⚙️ <i>Mode: ${state.mode === 'dashboard' ? 'Live Dashboard Pinned' : 'Pesan Baru Tiap Menit'}</i>\n`;
   msg += `👉 <i>Ketik /status, /sync, /checkin, /pause, /resume, atau /mode</i>`;
 
   return msg;
 }
 
 async function sendMinuteReport() {
-  console.log('📤 Generating 1-minute report across 3 VPS...');
   const text = generateStatusText();
 
   if (state.mode === 'dashboard' && state.dashboardMsgId) {
@@ -153,8 +184,6 @@ async function sendMinuteReport() {
     }
   }
 }
-
-// ─── Polling Listener ───
 
 let lastUpdateId = 0;
 async function pollUpdates() {
@@ -208,9 +237,6 @@ async function pollUpdates() {
               state.dashboardMsgId = null;
               saveState();
               await tgApi('sendMessage', { chat_id: chatId, text: `⚙️ Mode laporan berhasil diubah ke: <b>${state.mode === 'dashboard' ? 'Live Dashboard Pinned (Edit Tiap Menit)' : 'Pesan Baru Tiap Menit'}</b>`, parse_mode: 'HTML' });
-            }
-            else {
-              await tgApi('sendMessage', { chat_id: chatId, text: '🤖 Perintah tidak dikenal. Cek menu di kiri bawah atau ketik /status, /sync, /checkin, /pause, /resume, /mode.' });
             }
           }
         }
