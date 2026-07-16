@@ -12,7 +12,7 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const CONCURRENCY = 2; // aman untuk mail.tm 8 QPS
+const CONCURRENCY = 1; // 1 worker (sequential)
 
 function prompt(question) {
   const rl = readline.createInterface({ input, output });
