@@ -86,7 +86,7 @@ function allListOrUnique(allList, uniqueMap) {
 function calculateEstimatedE(accountsList) {
   let eToken = 0;
   for (const acc of accountsList) {
-    eToken += 2; // Signup
+    eToken += 2;
     if (acc.createdAt) {
       const diffTime = Math.abs(new Date() - new Date(acc.createdAt));
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -96,7 +96,6 @@ function calculateEstimatedE(accountsList) {
   return eToken;
 }
 
-// Global cache for real balances so we don't spam the API every minute if it fails occasionally
 const realBalances = { hidnan: null, azzura: null, sansan: null, raihanadhe: null, zurzur: null };
 
 async function getRealBalance(token) {
@@ -140,14 +139,12 @@ async function generateStatusText() {
     }
   }
 
-  // Load Main Tokens if available
   let mainTokens = {};
   try {
     const tokenFile = path.resolve(__dirname, '../data/main-tokens.json');
     if (fs.existsSync(tokenFile)) mainTokens = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
   } catch(e) {}
 
-  // Fetch real balances for configured tokens
   for (const reff of Object.keys(reffStats)) {
     if (mainTokens[reff]) {
       const realData = await getRealBalance(mainTokens[reff]);
@@ -165,18 +162,18 @@ async function generateStatusText() {
   msg += `• <b>${vps2.label}:</b> <code>${vps2.count} akun</code> [${statusIcon(vps2.active)}]\n`;
   msg += `• <b>${vps3.label}:</b> <code>${vps3.count} akun</code> [${statusIcon(vps3.active)}]\n\n`;
 
-  msg += `📈 <b>Total Akun Terkonsolidasi:</b> <code>${uniqueMap.size} Akun Unik</code>\n\n`;
+  msg += `📈 <b>Total Akun Reff Berhasil Dibuat:</b> <code>${uniqueMap.size} Akun</code>\n\n`;
 
-  msg += `👥 <b>Distribusi 5 Referal Utama & Saldo $E:</b>\n`;
+  msg += `💰 <b>Total Saldo $E Akun Utama:</b>\n`;
 
   for (const reff of ['hidnan', 'azzura', 'sansan', 'raihanadhe', 'zurzur']) {
     let balanceDisplay = '';
     if (realBalances[reff]) {
-      balanceDisplay = `<b>${realBalances[reff].balance.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i> 🟢 Real`;
+      balanceDisplay = `<b>${realBalances[reff].balance.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i>`;
     } else {
-      balanceDisplay = `<b>+${calculateEstimatedE(reffStats[reff].accounts)} $E</b> 🟡 Est`;
+      balanceDisplay = `<i>(Token API belum dimasukkan)</i>`;
     }
-    msg += `├ <code>${reff.padEnd(10)}</code> : <b>${reffStats[reff].count}</b> akun ➯ ${balanceDisplay}\n`;
+    msg += `├ <code>${reff.padEnd(10)}</code> : ${balanceDisplay}\n`;
   }
   msg += `\n`;
 
