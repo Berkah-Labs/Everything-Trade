@@ -86,27 +86,34 @@ function allListOrUnique(allList, uniqueMap) {
 function calculateEstimatedE(accountsList) {
   let eToken = 0;
   for (const acc of accountsList) {
-    // Signup Rebate: 2 $E
-    eToken += 2;
-
-    // Check-in Rebate: 2 $E per day since creation
+    eToken += 2; // Signup
     if (acc.createdAt) {
-      const createdDate = new Date(acc.createdAt);
-      const today = new Date();
-      // Calculate days difference (full days)
-      const diffTime = Math.abs(today - createdDate);
+      const diffTime = Math.abs(new Date() - new Date(acc.createdAt));
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      // If the account has been active and checked-in, add 2 $E per day passed
-      if (diffDays > 0) {
-        eToken += (diffDays * 2);
-      }
+      if (diffDays > 0) eToken += (diffDays * 2);
     }
   }
   return eToken;
 }
 
-function generateStatusText() {
+// Global cache for real balances so we don't spam the API every minute if it fails occasionally
+const realBalances = { hidnan: null, azzura: null, sansan: null, raihanadhe: null, zurzur: null };
+
+async function getRealBalance(token) {
+  try {
+    const res = await fetch('https://hp-sbt.everything.co/api/etoken/reward/balance', {
+      method: 'GET',
+      headers: { 'channel': 'minApp', 'device-type': 'web', 'platformtype': 'web', 'token': token, 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.code === '0' && data.data && data.data.balance !== undefined) {
+      return data.data; // { balance: 262, usdValue: 92.49 }
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function generateStatusText() {
   const vps1 = getRemoteStats('168.144.142.160', 'VPS 1 (Wormcup)');
   const vps2 = getRemoteStats('129.212.233.185', 'VPS 2 (Hypermet)');
   const vps3 = getLocalStats();
@@ -133,6 +140,21 @@ function generateStatusText() {
     }
   }
 
+  // Load Main Tokens if available
+  let mainTokens = {};
+  try {
+    const tokenFile = path.resolve(__dirname, '../data/main-tokens.json');
+    if (fs.existsSync(tokenFile)) mainTokens = JSON.parse(fs.readFileSync(tokenFile, 'utf8'));
+  } catch(e) {}
+
+  // Fetch real balances for configured tokens
+  for (const reff of Object.keys(reffStats)) {
+    if (mainTokens[reff]) {
+      const realData = await getRealBalance(mainTokens[reff]);
+      if (realData) realBalances[reff] = realData;
+    }
+  }
+
   const statusIcon = (active) => active ? '🟢 Run' : '🔴 Off';
 
   let msg = `📊 <b>EVERYTHING TRADE — LIVE 3 VPS DASHBOARD</b>\n`;
@@ -145,13 +167,18 @@ function generateStatusText() {
 
   msg += `📈 <b>Total Akun Terkonsolidasi:</b> <code>${uniqueMap.size} Akun Unik</code>\n\n`;
 
-  msg += `👥 <b>Distribusi 5 Referal Utama & Estimasi Bonus:</b>\n`;
-  msg += `<i>(Signup = 2 $E | Daily Check-in = 2 $E/day)</i>\n`;
-  msg += `├ <code>hidnan</code>      : <b>${reffStats.hidnan.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.hidnan.accounts)} $E</b>\n`;
-  msg += `├ <code>azzura</code>      : <b>${reffStats.azzura.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.azzura.accounts)} $E</b>\n`;
-  msg += `├ <code>sansan</code>      : <b>${reffStats.sansan.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.sansan.accounts)} $E</b>\n`;
-  msg += `├ <code>raihanadhe</code>  : <b>${reffStats.raihanadhe.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.raihanadhe.accounts)} $E</b>\n`;
-  msg += `└ <code>zurzur</code>      : <b>${reffStats.zurzur.count}</b> akun ➯ <b>+${calculateEstimatedE(reffStats.zurzur.accounts)} $E</b>\n\n`;
+  msg += `👥 <b>Distribusi 5 Referal Utama & Saldo $E:</b>\n`;
+
+  for (const reff of ['hidnan', 'azzura', 'sansan', 'raihanadhe', 'zurzur']) {
+    let balanceDisplay = '';
+    if (realBalances[reff]) {
+      balanceDisplay = `<b>${realBalances[reff].balance.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i> 🟢 Real`;
+    } else {
+      balanceDisplay = `<b>+${calculateEstimatedE(reffStats[reff].accounts)} $E</b> 🟡 Est`;
+    }
+    msg += `├ <code>${reff.padEnd(10)}</code> : <b>${reffStats[reff].count}</b> akun ➯ ${balanceDisplay}\n`;
+  }
+  msg += `\n`;
 
   msg += `⚙️ <i>Mode: ${state.mode === 'dashboard' ? 'Live Dashboard Pinned' : 'Pesan Baru Tiap Menit'}</i>\n`;
   msg += `👉 <i>Ketik /status, /sync, /checkin, /pause, /resume, atau /mode</i>`;
@@ -160,7 +187,7 @@ function generateStatusText() {
 }
 
 async function sendMinuteReport() {
-  const text = generateStatusText();
+  const text = await generateStatusText();
 
   if (state.mode === 'dashboard' && state.dashboardMsgId) {
     const res = await tgApi('editMessageText', {
@@ -198,7 +225,8 @@ async function pollUpdates() {
             const chatId = update.message.chat.id;
 
             if (cmd === '/status') {
-              await tgApi('sendMessage', { chat_id: chatId, text: generateStatusText(), parse_mode: 'HTML' });
+              const text = await generateStatusText();
+              await tgApi('sendMessage', { chat_id: chatId, text: text, parse_mode: 'HTML' });
             }
             else if (cmd === '/sync') {
               await tgApi('sendMessage', { chat_id: chatId, text: '⏳ Memulai sinkronisasi dari 3 VPS ke GitHub...' });
