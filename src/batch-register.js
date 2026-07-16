@@ -6,6 +6,10 @@
  *   Interactive prompt : node src/batch-register.js
  *   CLI batch args     : node src/batch-register.js --count 50 --reff hidnan
  *   Continuous loop    : node src/batch-register.js --loop --reff hidnan --delay 5000
+ *
+ * Guaranteed Slot Fulfillment:
+ *   If an account creation fails (e.g. timeout, rate limit), the slot is NEVER skipped.
+ *   The worker will keep retrying that exact slot until a valid account is created and saved.
  */
 import { register, readAccounts, saveAccounts } from './register.js';
 import * as readline from 'node:readline/promises';
@@ -87,7 +91,7 @@ async function main() {
 
   // 1. Continuous Loop Mode
   if (cliArgs.loop) {
-    console.log(`♾️ Mode LOOP aktif! Registrasi berjalan terus-menerus (1 Worker)`);
+    console.log(`♾️ Mode LOOP aktif! Registrasi berjalan terus-menerus (1 Worker, Tanpa Skip Slot)`);
     console.log(`👥 Referral : ${cliArgs.reff}`);
     console.log(`⏳ Jeda     : ${cliArgs.delay}ms antar akun\n`);
 
@@ -97,19 +101,31 @@ async function main() {
       console.log(`\n${'─'.repeat(50)}`);
       console.log(`  👤 Akun Loop #${idx} | ${new Date().toISOString().replace('T', ' ').substring(0, 19)} UTC`);
       console.log(`${'─'.repeat(50)}`);
-      try {
-        const account = await register(cliArgs.reff);
-        account._index = idx - 1;
 
-        // Atomic save langsung setiap 1 akun sukses
-        const existing = readAccounts();
-        const { _index, _error, ...data } = account;
-        existing.push(data);
-        saveAccounts(existing);
-        console.log(`  💾 Akun sukses disimpan! Total akun saat ini di accounts.json: ${existing.length}`);
-      } catch (err) {
-        console.error(`  ❌ Gagal pada iterasi #${idx}: ${err.message}`);
+      let success = false;
+      let attempt = 0;
+      while (!success) {
+        attempt++;
+        if (attempt > 1) {
+          console.log(`\n  🔄 [Slot #${idx}] Percobaan ulang ke-${attempt} untuk mengisi slot #${idx}...`);
+        }
+        try {
+          const account = await register(cliArgs.reff);
+          account._index = idx - 1;
+
+          // Atomic save langsung setiap 1 akun sukses
+          const existing = readAccounts();
+          const { _index, _error, ...data } = account;
+          existing.push(data);
+          saveAccounts(existing);
+          console.log(`  💾 Slot #${idx} sukses diisi (${data.email})! Total akun di accounts.json: ${existing.length}`);
+          success = true;
+        } catch (err) {
+          console.error(`  ⚠️ Gagal pada Slot #${idx} (${err.message}). Jeda 6 detik sebelum mencoba ulang slot #${idx} agar tidak di-skip...`);
+          await sleep(6000);
+        }
       }
+
       console.log(`\n⏳ Jeda ${cliArgs.delay / 1000} detik sebelum akun berikutnya...`);
       await sleep(cliArgs.delay);
     }
@@ -131,22 +147,39 @@ async function main() {
     if (promptReff) reffCode = promptReff;
   }
 
-  console.log(`\n🚀 Memulai registrasi ${count} akun (konkurensi: ${CONCURRENCY}, referral: ${reffCode})...`);
+  console.log(`\n🚀 Memulai registrasi ${count} akun (konkurensi: ${CONCURRENCY}, referral: ${reffCode}, Tanpa Skip Slot)...`);
 
   const startTime = Date.now();
 
   const results = await runWithConcurrency(count, CONCURRENCY, async (idx) => {
     console.log(`\n${'─'.repeat(40)}`);
-    console.log(`  👤 Akun #${idx + 1}/${count}`);
+    console.log(`  👤 Akun Slot #${idx + 1}/${count}`);
     console.log(`${'─'.repeat(40)}`);
-    const account = await register(reffCode);
-    account._index = idx;
 
-    // Atomic save per account to keep data safe during long runs
-    const existing = readAccounts();
-    const { _index, _error, ...data } = account;
-    existing.push(data);
-    saveAccounts(existing);
+    let account = null;
+    let success = false;
+    let attempt = 0;
+    while (!success) {
+      attempt++;
+      if (attempt > 1) {
+        console.log(`\n  🔄 [Slot #${idx + 1}/${count}] Percobaan ulang ke-${attempt} untuk mengisi slot #${idx + 1}...`);
+      }
+      try {
+        account = await register(reffCode);
+        account._index = idx;
+
+        // Atomic save per account to keep data safe during long runs
+        const existing = readAccounts();
+        const { _index, _error, ...data } = account;
+        existing.push(data);
+        saveAccounts(existing);
+        console.log(`  💾 Slot #${idx + 1} sukses diisi (${data.email})!`);
+        success = true;
+      } catch (err) {
+        console.error(`  ⚠️ Gagal pada Slot #${idx + 1} (${err.message}). Jeda 6 detik sebelum mencoba ulang slot #${idx + 1} agar tidak di-skip...`);
+        await sleep(6000);
+      }
+    }
 
     return account;
   });
