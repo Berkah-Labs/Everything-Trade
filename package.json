@@ -1,0 +1,16 @@
+{
+  "name": "everything-trade-auto-v2",
+  "version": "1.0.0",
+  "description": "Everything Trade automation — session injection approach (no browser)",
+  "type": "module",
+  "main": "src/explore.js",
+  "scripts": {
+    "explore": "node src/explore.js",
+    "register": "node src/register-flow.js",
+    "batch-register": "node src/batch-register.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.1",
+    "node-fetch": "^3.3.2"
+  }
+}
