@@ -166,16 +166,21 @@ async function generateStatusText() {
 
   msg += `💰 <b>Total Saldo $E Akun Utama:</b>\n`;
 
+  let grandTotalE = 0;
   for (const reff of ['hidnan', 'azzura', 'sansan', 'raihanadhe', 'zurzur']) {
     let balanceDisplay = '';
+    let currentE = 0;
     if (realBalances[reff]) {
-      balanceDisplay = `<b>${realBalances[reff].balance.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i>`;
+      currentE = realBalances[reff].balance;
+      balanceDisplay = `<b>${currentE.toLocaleString('id-ID')} $E</b> <i>(~$${realBalances[reff].usdValue.toFixed(2)})</i>`;
     } else {
-      balanceDisplay = `<b>${calculateEstimatedE(reffStats[reff].accounts).toLocaleString("id-ID")} $E</b>`;
+      currentE = calculateEstimatedE(reffStats[reff].accounts);
+      balanceDisplay = `<b>${currentE.toLocaleString("id-ID")} $E</b>`;
     }
+    grandTotalE += currentE;
     msg += `├ <code>${reff.padEnd(10)}</code> : ${balanceDisplay}\n`;
   }
-  msg += `\n`;
+  msg += `└ <b>TOTAL KESELURUHAN ➯ ${grandTotalE.toLocaleString("id-ID")} $E</b>\n\n`;
 
   msg += `⚙️ <i>Mode: ${state.mode === 'dashboard' ? 'Live Dashboard Pinned' : 'Pesan Baru Tiap Menit'}</i>\n`;
   msg += `👉 <i>Ketik /status, /sync, /checkin, /pause, /resume, atau /mode</i>`;
