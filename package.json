@@ -7,7 +7,8 @@
   "scripts": {
     "explore": "node src/explore.js",
     "register": "node src/register-flow.js",
-    "batch-register": "node src/batch-register.js"
+    "batch-register": "node src/batch-register.js",
+    "checkin": "node src/checkin.js"
   },
   "dependencies": {
     "ethers": "^6.13.1",
