@@ -3,7 +3,7 @@ import { Wallet } from 'ethers';
 import { readAccounts } from './register.js';
 
 const VPS_NAME = process.env.VPS_NAME || 'VPS';
-const BOT_TOKEN = '8639857410:AAFmwXFE7nZHy34ADH2j2RtcAEKpDMvc2hw';
+const BOT_TOKEN = null;
 const CHAT_ID = '1475537552';
 const BASE = 'https://hp-sbt.everything.co/api';
 const CONCURRENCY = 3;
