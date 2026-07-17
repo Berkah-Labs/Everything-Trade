@@ -1,0 +1,16 @@
+══════════════════════════════════════════════════════════
+  🔄 EVERYTHING TRADE — MULTI-VPS SYNC & GITHUB BACKUP
+══════════════════════════════════════════════════════════
+
+🏠 Local accounts on VPS 3: 495
+📡 Fetching accounts from VPS 1 (Wormcup) (168.144.142.160)...
+   ✅ Fetched 413 accounts from VPS 1 (Wormcup)
+📡 Fetching accounts from VPS 2 (Hypermet) (129.212.233.185)...
+   ✅ Fetched 404 accounts from VPS 2 (Hypermet)
+
+🔗 Consolidated Total Unique Accounts: 1188 (Added 693 remote accounts)
+💾 Merged accounts saved to local data/accounts.json
+
+🐙 Pushing consolidated accounts to GitHub (Berkah-Labs/Everything-Trade)...
+fatal: could not read Username for 'https://github.com': No such device or address
+   ❌ GitHub sync error: Command failed: git -C "/root/everything-trade/everything-trade-auto-v2" push origin main
